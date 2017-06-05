@@ -9,8 +9,8 @@ var outlierDygraphsNew = {};
 
 //displays user results
 
-function displayUserQueryResultsHelper( userQueryResults, includeSketch = true )
-{
+function displayUserQueryResultsHelper( userQueryResults, flipY, includeSketch = true )
+{ 
   clearUserQueryResultsTable();
   var resultsDiv = $("#results-table");
   var current = 0;
@@ -80,7 +80,14 @@ function displayUserQueryResultsHelper( userQueryResults, includeSketch = true )
 
     // X scale will fit all values from data[] within pixels 0-w
     var x = d3.scaleLinear().range([20, width-20]);
-    var y = d3.scaleLinear().range([height-20, 20]);
+
+    if(getflipY()){
+        var y = d3.scaleLinear().range([20, height-20]);
+    }
+    else{
+        var y = d3.scaleLinear().range([height-20, 20]);
+    }
+
     x.domain([xmin, xmax]);
     y.domain([ymin, ymax]);
     // x.domain([0, d3.max(data, function(d) {return Math.max(d.xval); })]);
@@ -97,10 +104,46 @@ function displayUserQueryResultsHelper( userQueryResults, includeSketch = true )
     // Add an SVG element with the desired dimensions and margin.
     var graph = d3.select("#result-" + count.toString())
           .append("svg")
-          .attr("viewBox","0 0 "+width.toString()+" "+ (height+15).toString())
+          .attr("viewBox","0 0 " + width.toString()+" "+ (height+15).toString())
           .attr("width", width)// + m[1] + m[3])
           .attr("height", height)// + m[0] + m[2])
           //.attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+
+    if (getSelectedCategory() == "dynamic_class" && globalDatasetInfo["classes"])
+    {
+      var tooltipText = ""
+      for (i = 0; i < zlabel.split(".").length; i++) {
+        var name = globalDatasetInfo["classes"]["classes"][i]["name"]
+        var value = globalDatasetInfo["classes"]["classes"][i]["values"][zlabel.split(".")[i]]
+        tooltipText += name + ": " + value + " "
+      }
+
+      var tooltip = graph.append("g")
+        .attr("class", "custom-tooltip")
+        .attr("id", "custom-tooltip" + count.toString())
+        .style("display", "none");
+      tooltip.append("rect")
+        .attr("width", 60)
+        .attr("height", 20)
+        .attr("fill", "white")
+        .style("opacity", 0.5);
+      tooltip.append("text")
+        .attr("x", 30)
+        .attr("dy", "1.2em")
+        .attr("text", tooltipText)
+        .style("text-anchor", "left")
+        .attr("font-size", "12px")
+
+      graph.on("mouseover", function() { $($(this).find(".custom-tooltip")[0]).show(); })
+      .on("mouseout", function() { $($(this).find(".custom-tooltip")[0]).hide(); })
+      .on("mousemove", function(d) {
+        var xPosition = d3.mouse(this)[0] - 5;
+        var yPosition = d3.mouse(this)[1] - 5;
+        $($(this).find(".custom-tooltip")[0]).attr("transform", "translate(" + xPosition + "," + yPosition + ")");
+        var ttt = $($($(this).find(".custom-tooltip")[0]).children()[1]).attr("text")
+        $($($(this).find(".custom-tooltip")[0]).children()[1]).text(ttt);
+      });
+    }
 
     graph.append("defs").append("clipPath")
         .attr("id", "clip-" + count.toString())
@@ -138,13 +181,16 @@ function displayUserQueryResultsHelper( userQueryResults, includeSketch = true )
         .attr("transform", "translate(0," + trans + ")")
         .call(d3.axisBottom(x).ticks(5, "s"));
 
-    graph.append("text")
-      .attr("transform",
-            "translate(" + (width/2) + " ," +
-           (trans + m[0] + 30) + ")")
-      .style("text-anchor", "middle")
-      .text(zAttribute + ": " + zlabel + " (" + similarityDistance.toFixed(2) + ")" );
-
+    if  (!isNaN(similarityDistance)){
+      graph.append("text")
+        .attr("transform",
+              "translate(" + (width/2) + " ," +
+             (trans + m[0] + 30) + ")")
+        .style("text-anchor", "middle")
+        .attr("count", count.toString())
+        .text(zAttribute + ": " + zlabel + " (" + similarityDistance.toFixed(2) + ")" );
+        //<text data-placement="right" title="This is a<br />test...<br />or not">Hover over me</text>
+    }
     graph.append("text")
       .attr("transform",
             "translate(" + (width/2) + " ," +
@@ -154,11 +200,17 @@ function displayUserQueryResultsHelper( userQueryResults, includeSketch = true )
       .text(ylabel + " by " + xlabel);
 
     // Add the Y Axis
-    graph.append("g")
+    if ((Math.log10(ymax)<=0)&(Math.log10(ymax)>=-2)){
+      graph.append("g")
         .attr("class", "axis axis--y")
         .attr("transform", "translate(20,0)")
-        .call(d3.axisLeft(y).ticks(4, "s"));
-
+        .call(d3.axisLeft(y).ticks(4, ".2"));
+    }else{
+      graph.append("g")
+        .attr("class", "axis axis--y")
+        .attr("transform", "translate(20,0)")
+        .call(d3.axisLeft(y).ticks(4, ".2s"));  
+    }    
     // Add the line by appending an svg:path element with the data line we created above
     // do this AFTER the axes above so that the line is above the tick-lines
 
@@ -180,7 +232,7 @@ function displayUserQueryResultsHelper( userQueryResults, includeSketch = true )
           .attr("fill", "none");
     }
 
-    if (data2 != null && data2 != undefined && includeSketch)
+    if (data2 != null && data2 != undefined && includeSketch && getShowOriginalSketch())
     {
       graph.append("g").attr("clip-path", "url(#clip-" + count.toString() + ")")
                         .append("path").attr("d", valueline(data2))
@@ -208,7 +260,7 @@ function replaceAll(str, find, replace) {
   return str.replace(new RegExp(find, 'g'), replace);
 }
 
-function displayRepresentativeResultsHelper( representativePatternResults )
+function displayRepresentativeResultsHelper( representativePatternResults , flipY )
 {
   clearRepresentativeTable();
   var resultsDiv = $("#representative-table");
@@ -256,7 +308,13 @@ function displayRepresentativeResultsHelper( representativePatternResults )
 
     // X scale will fit all values from data[] within pixels 0-w
     var x = d3.scaleLinear().range([20, width-20]);
-    var y = d3.scaleLinear().range([height-20, 20]);
+    if(getflipY()){
+        var y = d3.scaleLinear().range([20, height-20]);
+    }
+    else{
+        var y = d3.scaleLinear().range([height-20, 20]);
+    }
+
     x.domain([xmin, xmax]);
     y.domain([ymin, ymax]);
 
@@ -361,10 +419,17 @@ function displayRepresentativeResultsHelper( representativePatternResults )
       .text(getSelectedYAxis() + " by " + getSelectedXAxis());
 
     // Add the Y Axis
-    graph.append("g")
+    if ((Math.log10(ymax)<=0)&(Math.log10(ymax)>=-2)){
+      graph.append("g")
         .attr("class", "axis axis--y")
         .attr("transform", "translate(20,0)")
-        .call(d3.axisLeft(y).ticks(4, "s"));
+        .call(d3.axisLeft(y).ticks(4, ".2"));
+    }else{
+      graph.append("g")
+        .attr("class", "axis axis--y")
+        .attr("transform", "translate(20,0)")
+        .call(d3.axisLeft(y).ticks(4, ".2s"));  
+    }    
 
 
     // Add the line by appending an svg:path element with the data line we created above
@@ -433,7 +498,13 @@ function displayOutlierResultsHelper( outlierResults )
 
     // X scale will fit all values from data[] within pixels 0-w
     var x = d3.scaleLinear().range([20, width-20]);
-    var y = d3.scaleLinear().range([height-20, 20]);
+    if(getflipY()){
+        var y = d3.scaleLinear().range([20, height-20]);
+    }
+    else{
+        var y = d3.scaleLinear().range([height-20, 20]);
+    }
+
     x.domain([xmin, xmax]);
     y.domain([ymin, ymax]);
 
@@ -532,10 +603,18 @@ function displayOutlierResultsHelper( outlierResults )
       .text(getSelectedYAxis() + " by " + getSelectedXAxis());
 
     // Add the Y Axis
-    graph.append("g")
+    if ((Math.log10(ymax)<=2)&(Math.log10(ymax)>=-2)){
+      graph.append("g")
         .attr("class", "axis axis--y")
         .attr("transform", "translate(20,0)")
-        .call(d3.axisLeft(y).ticks(4, "s"));
+        .call(d3.axisLeft(y).ticks(4, ".2"));
+    }else{
+      graph.append("g")
+        .attr("class", "axis axis--y")
+        .attr("transform", "translate(20,0)")
+        .call(d3.axisLeft(y).ticks(4, ".2s"));  
+    }
+    
 
     // Add the line by appending an svg:path element with the data line we created above
     // do this AFTER the axes above so that the line is above the tick-lines

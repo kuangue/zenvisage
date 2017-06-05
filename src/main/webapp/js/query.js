@@ -55,6 +55,8 @@ function Query( searchMethod ) {
   this.xRange = getXRange();
   //this.segmentCount = getNumSegments();
   this.considerRange = getConsiderRange();
+  this.smoothingType = getSmoothingType();// fix to dynamically fetch
+  this.smoothingcoefficient = getSmoothingCoefficient();// fix to dynamically fetch
 }
 
 function SketchPoints(xAxisName, yAxisName, points){
@@ -85,6 +87,16 @@ function getSelectedYAxis()
 function getSelectedCategory()
 {
   return angular.element($("#sidebar")).scope().selectedCategory;
+}
+
+function getSmoothingCoefficient()
+{
+  return $( "#slider-range-max" ).slider( "value" );
+}
+
+function getSmoothingType()
+{
+  return angular.element($("#smoothing-form-control option:selected")).val()
 }
 
 function getXRange() //when zoomed in
@@ -122,6 +134,16 @@ function getScatterplotOption()
   return angular.element($("#table-div")).scope().showScatterplot;
 }
 
+function getflipY()
+{
+  return angular.element($("#table-div")).scope().flipY;
+}
+
+function getShowOriginalSketch()
+{
+  return angular.element($("#table-div")).scope().showOriginalSketch;
+}
+
 function getNumSegments()
 {
   return $('#num-segments input').val()
@@ -131,4 +153,3 @@ function getSelectedDataset()
 {
   return $("#dataset-form-control option:selected").val();
 }
-

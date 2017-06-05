@@ -222,7 +222,41 @@ public class ZvMain {
 		   return "";
 	   }
    }
+   
+   public String runScatterQueryGraph(String zqlQuery) throws IOException, InterruptedException{
+	   System.out.println(zqlQuery);
+	   edu.uiuc.zenvisage.zqlcomplete.executor.ZQLTable zqlTable = new ObjectMapper().readValue(zqlQuery, edu.uiuc.zenvisage.zqlcomplete.executor.ZQLTable.class);
+	   ZQLParser parser = new ZQLParser();
+	   QueryGraph graph;
+	   try {
+		   graph = parser.processZQLTable(zqlTable);
+		   VisualComponentList output = edu.uiuc.zenvisage.zqlcomplete.querygraph.QueryGraphExecutor.execute(graph);
+		   //convert it into front-end format.
+		   String result = new ObjectMapper().writeValueAsString(convertVCListtoScatterOutput(output));
+		   System.out.println("Done");
+		   return result;
+	   } catch (SQLException e) {
+		   e.printStackTrace();
+		   return "";
+	   }
+   }
 
+   public ScatterOutput convertVCListtoScatterOutput(VisualComponentList vcList) {
+	   ScatterOutput finalOutput = new ScatterOutput();
+		//VisualComponentList -> Result. Only care about the outputcharts. this is for submitZQL
+	    for(VisualComponent viz : vcList.getVisualComponentList()) {
+	    	ScatterChart outputChart = new ScatterChart();
+
+	    	outputChart.zval = viz.getZValue().toString();
+	    	ArrayList<WrapperType> xList = viz.getPoints().getXList();
+	    	ArrayList<WrapperType> yList = viz.getPoints().getYList();
+	    	for(int i = 0; i < viz.getPoints().getXList().size(); i++) {
+	    		outputChart.points.add(new Point(xList.get(i).getNumberValue(), yList.get(i).getNumberValue()));
+	    	}
+	    	finalOutput.outputCharts.add(outputChart);
+	    }
+		return finalOutput;	   
+   }
    public Result convertVCListtoVisualOutput(VisualComponentList vcList){
 		Result finalOutput = new Result();
 		//VisualComponentList -> Result. Only care about the outputcharts. this is for submitZQL
@@ -306,18 +340,11 @@ public class ZvMain {
 		return null;
 	}
 
-	public String runCreateClasses(String query) throws IOException, SQLException{
+	public void runCreateClasses(String query) throws IOException, SQLException{
 		System.out.println("Create Dynamic Classes Configuration Query:" + query);
 	    DynamicClass dc = new ObjectMapper().readValue(query, DynamicClass.class);
 	    sqlQueryExecutor.persistDynamicClassPowerSetMethod(dc);
 	    sqlQueryExecutor.persistDynamicClassDetails(dc);
-	    
-        //Testing
-        //String retrieved = runRetrieveClasses("{\"dataset\": \"real_estate\"}");
-        //System.out.println("Retrieved query:"+retrieved);
-
-	    return "Success";
-	    
 	}
 	
 	public String runRetrieveClasses(String query) throws IOException, SQLException{
@@ -417,6 +444,11 @@ public class ZvMain {
 		 LinkedHashMap<String, LinkedHashMap<Float, Float>> output =  sqlQueryExecutor.getVisualComponentList().toInMemoryHashmap();
 		 System.out.println("After To HashMap");
 		 output = cleanUpDataWithAllZeros(output);
+		 
+		 
+		 //
+		output= SmoothingUtil.applySmoothing(output,args);
+		 
 		 // setup result format
 		 Result finalOutput = new Result();
 		 finalOutput.method = method;
@@ -465,11 +497,13 @@ public class ZvMain {
 		 // generate the corresponding analysis method
 		 if (method.equals("Outlier")) {
 			 normalizedgroups = dataReformatter.reformatData(output);
+			 normalizedgroups= SmoothingUtil.applySmoothing(normalizedgroups,args);
 			 Clustering cluster = new KMeans(distance, normalization, args);
 			 analysis = new Outlier(chartOutput,new Euclidean(),normalization,cluster,args);
 		 }
 		 else if (method.equals("RepresentativeTrends")) {
 			 normalizedgroups = dataReformatter.reformatData(output);
+			 normalizedgroups= SmoothingUtil.applySmoothing(normalizedgroups,args);
 			 Clustering cluster = new KMeans(distance, normalization, args);
 			 analysis = new Representative(chartOutput,new Euclidean(),normalization,cluster,args);
 		 }
@@ -479,12 +513,16 @@ public class ZvMain {
 			 if (args.considerRange) {
 				 double[][][] overlappedDataAndQueries = dataReformatter.getOverlappedData(output, args); // O(V*P)
 				 normalizedgroups = overlappedDataAndQueries[0];
+				 normalizedgroups= SmoothingUtil.applySmoothing(normalizedgroups,args);
 				 double[][] overlappedQuery = overlappedDataAndQueries[1];
+				 overlappedQuery= SmoothingUtil.applySmoothing(overlappedQuery,args);
 				 analysis = new Similarity(chartOutput,distance,normalization,args,dataReformatter, overlappedQuery);
 			 }
 			 else {
 				 normalizedgroups = dataReformatter.reformatData(output);
+				 normalizedgroups= SmoothingUtil.applySmoothing(normalizedgroups,args);
 				 double[] interpolatedQuery = dataReformatter.getInterpolatedData(args.dataX, args.dataY, args.xRange, normalizedgroups[0].length); // O(P)
+				 interpolatedQuery= SmoothingUtil.applySmoothing(interpolatedQuery,args);
 				 analysis = new Similarity(chartOutput,distance,normalization,paa,args,dataReformatter, interpolatedQuery);
 			 }
 
@@ -496,12 +534,16 @@ public class ZvMain {
 			 if (args.considerRange) {
 				 double[][][] overlappedDataAndQueries = dataReformatter.getOverlappedData(output, args);
 				 normalizedgroups = overlappedDataAndQueries[0];
+				 normalizedgroups= SmoothingUtil.applySmoothing(normalizedgroups,args);
 				 double[][] overlappedQuery = overlappedDataAndQueries[1];
+				 overlappedQuery= SmoothingUtil.applySmoothing(overlappedQuery,args);
 				 analysis = new Similarity(chartOutput,distance,normalization,args,dataReformatter, overlappedQuery);
 			 }
 			 else {
 				 normalizedgroups = dataReformatter.reformatData(output);
+				 normalizedgroups= SmoothingUtil.applySmoothing(normalizedgroups,args);
 				 double[] interpolatedQuery = dataReformatter.getInterpolatedData(args.dataX, args.dataY, args.xRange, normalizedgroups[0].length);
+				 interpolatedQuery= SmoothingUtil.applySmoothing(interpolatedQuery,args);
 				 analysis = new Similarity(chartOutput,distance,normalization,paa,args,dataReformatter, interpolatedQuery);
 			 }
 			 ((Similarity) analysis).setDescending(true);

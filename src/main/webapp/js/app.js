@@ -41,6 +41,8 @@ app.controller('classCreationController', ['$scope', '$rootScope','$http', funct
     ).then(
         function (response) {
           console.log("success: ", response);
+          globalDatasetInfo["classes"] = JSON.parse(response.data)
+          $('#class-creation-close-button')[0].click();
         },
         function (response) {
           console.log("failed: ", response);
@@ -56,7 +58,7 @@ app.controller('classInfoController', ['$scope', '$rootScope','$http', function 
     $scope.getClassInfo();
   });
 
-  var testQ = "{\"dataset\":\"real_estate\",\"classes\":[{\"name\":\"soldpricepersqft\",\"values\":[[0,90],[90,25144.643]]},{\"name\":\"listingpricepersqft\",\"values\":[[0,100],[100,1457.0552]]}]}"
+  //var testQ = "{\"dataset\":\"real_estate\",\"classes\":[{\"name\":\"soldpricepersqft\",\"values\":[[0,90],[90,25144.643]]},{\"name\":\"listingpricepersqft\",\"values\":[[0,100],[100,1457.0552]]}]}"
   $scope.getClassInfo = function getClassInfo() {
     var query = {};
     query["dataset"] = getSelectedDataset();
@@ -64,6 +66,7 @@ app.controller('classInfoController', ['$scope', '$rootScope','$http', function 
     ).then(
         function (response) {
           console.log("success: ", response);
+          globalDatasetInfo["classes"] = response.data
           $scope.classes = response.data["classes"]
         },
         function (response) {
@@ -217,7 +220,7 @@ app.controller('zqlTableController', ['$scope' ,'$http', 'plotResults', '$compil
     ).then(
         function (response) {
             console.log("success: ", response);
-            plotResults.displayUserQueryResults(response.data.outputCharts, false);
+            plotResults.displayUserQueryResults(response.data.outputCharts, $scope.flipY,false);
         },
         function (response) {
             console.log("failed: ", escape(response));
@@ -257,7 +260,7 @@ app.controller('zqlTableController', ['$scope' ,'$http', 'plotResults', '$compil
     ).then(
         function (response) {
             console.log("success: ", response);
-            plotResults.displayUserQueryResults(response.data.outputCharts, false);
+            plotResults.displayUserQueryResults(response.data.outputCharts,$scope.flipY, false);
         },
         function (response) {
             console.log("failed: ", escape(response));
@@ -332,14 +335,14 @@ app.factory('datasetInfo', function() {
 app.factory('plotResults', function() {
 
     var plottingService = {};
-    plottingService.displayUserQueryResults = function displayUserQueryResults( userQueryResults, includeSketch = true )
+    plottingService.displayUserQueryResults = function displayUserQueryResults( userQueryResults, flipY , includeSketch = true )
     {
-      displayUserQueryResultsHelper( userQueryResults, includeSketch );
+      displayUserQueryResultsHelper( userQueryResults, flipY, includeSketch );
     }
 
-    plottingService.displayRepresentativeResults = function displayRepresentativeResults( representativePatternResults )
+    plottingService.displayRepresentativeResults = function displayRepresentativeResults( representativePatternResults,flipY )
     {
-      displayRepresentativeResultsHelper( representativePatternResults )
+      displayRepresentativeResultsHelper( representativePatternResults,flipY )
     }
 
     plottingService.displayOutlierResults = function displayOutlierResults( outlierResults )
@@ -351,19 +354,21 @@ app.factory('plotResults', function() {
 });
 
 app.controller('options-controller', [
-  '$scope', '$rootScope', '$http', 'ChartSettings', '$compile',
-  function($scope, $rootScope, $http, ChartSettings, $compile){
+  '$scope', '$rootScope', '$http','datasetInfo',  'ChartSettings', '$compile',
+  function($scope, $rootScope, $http,datasetInfo, ChartSettings, $compile){
     $scope.similarity = 'Euclidean';
     $scope.representative = 'kmeans';
     $scope.aggregation = 'avg';
     $scope.numResults = 50;
     $scope.clusterSize = 3;
     $scope.considerRange = true;
+    $scope.showOriginalSketch = true;
     $scope.equation =  '';
     $scope.zqltable = false;
     $scope.chartSettings = ChartSettings;
     $scope.chartSettings.chartOptions = ["Line", "Bar", "Scatter"];
     $scope.chartSettings.selectedChartOption = $scope.chartSettings.chartOptions[0];
+    $scope.flipY = false;
 
     $scope.$watchGroup(['similarity', 'numResults'], function( newValue, oldValue ) {
       if (newValue !== oldValue)
@@ -387,6 +392,13 @@ app.controller('options-controller', [
     });
 
     $scope.$watchGroup( ['considerRange' ], function( newValue, oldValue ) {
+      if (newValue !== oldValue)
+      {
+        $scope.callGetUserQueryResultsWithCallBack();
+      }
+    });
+
+    $scope.$watchGroup( ['showOriginalSketch' ], function( newValue, oldValue ) {
       if (newValue !== oldValue)
       {
         $scope.callGetUserQueryResultsWithCallBack();
@@ -419,6 +431,14 @@ app.controller('options-controller', [
       $scope.$broadcast('insertProcessRowhelper');
     }
 
+    $scope.$watch('flipY', function( newValue, oldValue ) {
+      if (newValue !== oldValue)
+      {
+        //console.log("flipped?",$scope.flipY);
+        $scope.callGetUserQueryResultsWithCallBack();
+        $scope.callgetRepresentativeTrends();
+      }
+    });
 
 
     // TOP K
@@ -433,13 +453,32 @@ app.controller('options-controller', [
       success(function(response) {
         console.log("getTopK: success");
         if (response.length == 0){console.log("empty response")}
-        plotResults.displayUserQueryResults(response.outputCharts);
+        plotResults.displayUserQueryResults(response.outputCharts,$scope.flipY,true);
       }).
       error(function(response) {
         console.log("getUserQueryResults: fail");
       });
 
     }
+
+    $scope.onflipYChange = function() {
+      var zdata = datasetInfo.getCategoryData()[getSelectedCategory()]
+      var xdata = datasetInfo.getXAxisData()[getSelectedXAxis()]
+      var ydata = datasetInfo.getYAxisData()[getSelectedYAxis()]
+      // $.when(initializeSketchpadOnDataAttributeChange(xData, yData, categoryData))
+      // .done(function(){
+      //   getRepresentativeTrends( getOutlierTrends );
+      // });
+      initializeSketchpadNew(
+        xdata["min"],xdata["max"],ydata["min"],ydata["max"],
+        xdata["name"],ydata["name"],zdata["name"] , $scope.flipY
+       );
+    //  $scope.callGetUserQueryResultsWithCallBack();
+    //  $scope.callgetRepresentativeTrends();
+      console.log("flipY 1", getflipY())
+    };
+
+
 
     $scope.clearQuery = function() {
       $scope.removeAndInsertRows( 1 );
@@ -677,6 +716,8 @@ app.controller('options-controller', [
         }
       }
 
+      angular.element('#class-creation').triggerHandler('click');
+
       var zType = angular.element($("#sidebar")).scope().selectedCategory;
       var xType = angular.element($("#sidebar")).scope().selectedXAxis;
       var yType = angular.element($("#sidebar")).scope().selectedYAxis;
@@ -707,9 +748,12 @@ app.controller('datasetController', [
   '$scope', '$rootScope', '$http', 'datasetInfo', 'plotResults', 'ScatterService', 'ChartSettings',
   function($scope, $rootScope, $http, datasetInfo, plotResults, scatterService, ChartSettings){
 
+
+
     $scope.chartSettings = ChartSettings;
     function initializeSketchpadOnDataAttributeChange( xdata, ydata, zdata )
     {
+      console.log("flipY 2: ", getflipY());
       clearRepresentativeTable();
       clearOutlierTable();
       clearUserQueryResultsTable();
@@ -723,7 +767,7 @@ app.controller('datasetController', [
           default: // Line
               initializeSketchpadNew(
                 xdata["min"],xdata["max"],ydata["min"],ydata["max"],
-                xdata["name"],ydata["name"],zdata["name"]
+                xdata["name"],ydata["name"],zdata["name"] , $scope.flipY
                );
               break;
       }
@@ -739,6 +783,7 @@ app.controller('datasetController', [
 
     $scope.getUserQueryResultsWithCallBack = function getUserQueryResultsWithCallBack()
     {
+
       clearUserQueryResultsTable();
       var q = constructUserQuery(); //goes to query.js
       var data = q;
@@ -747,7 +792,7 @@ app.controller('datasetController', [
       success(function(response) {
         console.log("getUserQueryResults: success");
         if (response.length == 0){console.log("empty response")}
-        plotResults.displayUserQueryResults(response.outputCharts);
+        plotResults.displayUserQueryResults(response.outputCharts,$scope.flipY,true);
         $scope.getRepresentativeTrendsWithoutCallback();
       }).
       error(function(response) {
@@ -767,7 +812,7 @@ app.controller('datasetController', [
       success(function(response) {
         console.log("getUserQueryResults: success");
         if (response.length == 0){console.log("empty response")}
-        plotResults.displayUserQueryResults(response.outputCharts);
+        plotResults.displayUserQueryResults(response.outputCharts,$scope.flipY,true);
       }).
       error(function(response) {
         console.log("getUserQueryResults: fail");
@@ -793,7 +838,7 @@ app.controller('datasetController', [
       success(function(response) {
         console.log("getRepresentativeTrends: success");
         if (response.length == 0){console.log("empty response")}
-        plotResults.displayRepresentativeResults( response.outputCharts );
+        plotResults.displayRepresentativeResults( response.outputCharts , $scope.flipY );
         outlierCallback();
       }).
       error(function(response) {
@@ -903,6 +948,20 @@ app.controller('datasetController', [
       $scope.getUserQueryResultsWithCallBack();
     };
 
+    $scope.onflipYChange = function() {
+      var categoryData = datasetInfo.getCategoryData()[getSelectedCategory()]
+      var xData = datasetInfo.getXAxisData()[getSelectedXAxis()]
+      var yData = datasetInfo.getYAxisData()[getSelectedYAxis()]
+      // $.when(initializeSketchpadOnDataAttributeChange(xData, yData, categoryData))
+      // .done(function(){
+      //   getRepresentativeTrends( getOutlierTrends );
+      // });
+      initializeSketchpadOnDataAttributeChange(xData, yData, categoryData);
+    //  $scope.callGetUserQueryResultsWithCallBack();
+    //  $scope.callgetRepresentativeTrends();
+      console.log("flipY 1", getflipY())
+    };
+
     $rootScope.$on("callGetUserQueryResultsWithCallBack", function(){
       $scope.getUserQueryResultsWithCallBack();
     });
@@ -920,7 +979,7 @@ app.service('ChartSettings', function () {
     return {};
 })
 
-  $('#tree-option').click(function() {
-    $(this).toggleClass("active");
-    $("#tree-div").toggle("active");
-  });
+  // $('#tree-option').click(function() {
+  //   $(this).toggleClass("active");
+  //   $("#tree-div").toggle("active");
+  // });

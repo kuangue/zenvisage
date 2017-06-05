@@ -7,8 +7,10 @@ var sketchpadData;
 
 var xrangeNew;
 
-function createSketchpad( data )
+function createSketchpad( data , flipY)
 {
+console.log('createSketchpad')
+
   // change these values somewhere. hard coded for now
   var topMargin = 0;
   var leftMargin = 30;
@@ -23,11 +25,24 @@ function createSketchpad( data )
 
   // set the ranges
   var x = d3.scaleLinear().range([0, width]);
-  var y = d3.scaleLinear().range([height, 0]);
+  if(getflipY()){
+      var y = d3.scaleLinear().range([0,height]);
+  }
+  else{
+      var y = d3.scaleLinear().range([height, 0]);
+  }
+
+
+/**************changed*******************/
 
   // range for the zoom
   var x2 = d3.scaleLinear().range([0, width]);
-  var y2 = d3.scaleLinear().range([height2, 0]);
+  if(getflipY()){
+      var y2 = d3.scaleLinear().range([0,height2]);
+  }
+  else{
+      var y2 = d3.scaleLinear().range([height2, 0]);
+  }
   var miny = 0;
   var maxy = height;
 
@@ -107,9 +122,16 @@ function createSketchpad( data )
 
 
   // Add the Y Axis
-  focus.append("g")
-      .attr("class", "axis axis--y")
-      .call(d3.axisLeft(y).ticks(8, "s"));
+  if ((Math.log10(ymax)<=0)&(Math.log10(ymax)>=-2)){
+    focus.append("g")
+        .attr("class", "axis axis--y")
+        .call(d3.axisLeft(y).ticks(8, ".2"));
+    }else{
+    focus.append("g")
+        .attr("class", "axis axis--y")
+        .call(d3.axisLeft(y).ticks(8, "s"));
+    }
+
 
   context.append("path")
       .data([data])
@@ -259,7 +281,7 @@ function plotSketchpadNew( data )//, xType, yType, zType)
 
 // initialize scatter?
 
-function initializeSketchpadNew(xmin, xmax, ymin, ymax, xlabel, ylabel, category)
+function initializeSketchpadNew(xmin, xmax, ymin, ymax, xlabel, ylabel, category , flipY)
 {
   // intialize to 100 points
   var data = [];
@@ -268,7 +290,7 @@ function initializeSketchpadNew(xmin, xmax, ymin, ymax, xlabel, ylabel, category
   }
   // sketchpad = getSketchpadDygraphObject( data, valueRange );
   // getSketchpadDygraphObjectNew( data, valueRange );
-  createSketchpad( data );
+  createSketchpad( data , flipY);
   refreshZoomEventHandler();
 }
 
@@ -324,7 +346,12 @@ function setPoint(event, g, context) {
   }
 }
 
-
+function patternLoad(){
+  data = JSON.parse($("#pattern-upload-textarea")[0].value);
+  console.log(data);
+  createSketchpad( data );
+  refreshZoomEventHandler();
+}
 
 function Point(x, y){
   this.x=x;
