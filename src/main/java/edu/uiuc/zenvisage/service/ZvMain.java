@@ -345,12 +345,19 @@ public class ZvMain {
 	    DynamicClass dc = new ObjectMapper().readValue(query, DynamicClass.class);
 	    sqlQueryExecutor.persistDynamicClassPowerSetMethod(dc);
 	    sqlQueryExecutor.persistDynamicClassDetails(dc);
+	    sqlQueryExecutor.createDynamicClassAggregation();
 	}
 	
 	public String runRetrieveClasses(String query) throws IOException, SQLException{
 		DynamicClass dc = sqlQueryExecutor.retrieveDynamicClassDetails(query);
 		String retrieved = new ObjectMapper().writeValueAsString(dc);
 		System.out.println("Retrieved Dynamic Classes Configuration Query:"+retrieved);
+		return retrieved;
+	}
+	
+	public ArrayList<String> getTablelist() throws IOException, SQLException{
+		ArrayList<String> retrieved = sqlQueryExecutor.gettablelist();
+		System.out.println("Retrieved table list in db:"+retrieved);
 		return retrieved;
 	}
 	/* Will be obsolete when the new separated query method is utilized */

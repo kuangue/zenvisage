@@ -21,6 +21,7 @@ import edu.uiuc.zenvisage.zqlcomplete.executor.YColumn;
 import edu.uiuc.zenvisage.zqlcomplete.executor.ZColumn;
 import edu.uiuc.zenvisage.zqlcomplete.executor.ZQLRow;
 import edu.uiuc.zenvisage.model.DynamicClass;
+import edu.uiuc.zenvisage.api.Readconfig;
 import edu.uiuc.zenvisage.model.ClassElement;
 import java.util.Arrays;
 
@@ -36,14 +37,15 @@ public class SQLQueryExecutor {
 	 */
 	private String database = "postgres";
 	private String host = "jdbc:postgresql://localhost:5432/"+database;
-	private String username = "postgres";
-	private String password = "zenvisage";
+	private String username;
+	private String password;
 	Connection c = null;
 	public VisualComponentList visualComponentList;
 
 	// Initialize connection
 	public SQLQueryExecutor() {
-
+		this.username = Readconfig.getUsername();
+		this.password = Readconfig.getPassword();
 	      try {
 		         Class.forName("org.postgresql.Driver");
 		         c = DriverManager
@@ -95,6 +97,19 @@ public class SQLQueryExecutor {
 	    stmt.executeUpdate(sql);
 //	    System.out.println("Table " + tableName + " deleted in given database...");
 	    stmt.close();
+	}
+	
+	
+	public ArrayList<String> gettablelist() throws SQLException {
+		Statement stmt = c.createStatement();
+		String sql = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name != 'zenvisage_metatable' AND table_name != 'zenvisage_dynamic_classes' AND table_name != 'zenvisage_metafilelocation'";
+		ResultSet rs = stmt.executeQuery(sql);
+		ArrayList<String> tablelist = new ArrayList<String>();
+		while ( rs.next() ) {
+            String tablename = rs.getString("table_name");
+            tablelist.add(tablename);
+		}
+        return tablelist;
 	}
 
 	public void ZQLQuery(String Z, String X, String Y, String table, String whereCondition) throws SQLException{
@@ -503,18 +518,60 @@ public class SQLQueryExecutor {
 		st.execute(sql);
 		st.close();
 	}
+	
+// jaewoo new function 
+
+	public void createDynamicClassAggregation() throws SQLException{
+		SQLQueryExecutor sqlQueryExecutor= new SQLQueryExecutor();
+		
+		if(!sqlQueryExecutor.gettablelist().contains("dynamic_class_aggregations")){
+				createTable("CREATE TABLE dynamic_class_aggregations  " +
+	                "(ID INT PRIMARY KEY     NOT NULL," +
+	                " Table_Name           TEXT    NOT NULL, " +
+	                " Tag            TEXT     NOT NULL, " +
+	                " Count          INT     NOT NULL) ");
+		}
+		else{
+			sqlQueryExecutor.dropTable("dynamic_class_aggregations");
+			createTable("CREATE TABLE dynamic_class_aggregations  " +
+	                " (Table_Name           TEXT    NOT NULL, " +
+	                " Tag            TEXT     NOT NULL, " +
+	                " Count          INT     NOT NULL) ");
+			
+		}
+
+		//insert elements 
+		List<String> tables = new ArrayList<String>();
+		tables.add("real_estate");
+		tables.add("cmu");
+		Statement st= c.createStatement();
+		for(String t:tables){
+		String sql = String.format("INSERT INTO dynamic_class_aggregations(table_name,tag,count)"
+				+ "SELECT '%s', dynamic_class,COUNT(dynamic_class)"
+				+ "FROM " + t + " GROUP BY dynamic_class", t);
+		st.execute(sql);
+		System.out.print(t);
+		}
+		st.close(); 
+	//	Statement st= c.createStatement();
+	//	String sql; 
+	//	st.execute(sql);
+		
+	}
 
 	public static void main(String[] args) throws SQLException{
 		SQLQueryExecutor sqlQueryExecutor= new SQLQueryExecutor();
 		try {
-			sqlQueryExecutor.dropTable("COMPANY");
+//			sqlQueryExecutor.dropTable("COMPANY");
 
-			//sqlQueryExecutor.query("SELECT * FROM COMPANY");
+//			sqlQueryExecutor.query("SELECT * FROM cmu");
+			System.out.println(sqlQueryExecutor.gettablelist());
+//			sqlQueryExecutor.gettablelist();
 
 			//sqlQueryExecutor.ZQLQuery("State", "Quarter", "SoldPrice", "real_estate", null);
 
 
-		} catch (PSQLException e) {
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			sqlQueryExecutor.createTable("CREATE TABLE COMPANY " +
 	                "(ID INT PRIMARY KEY     NOT NULL," +
