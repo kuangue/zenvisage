@@ -48,8 +48,6 @@ For making the above change, you could run the following commands:
  
           DROP schema public cascade; CREATE schema public; CREATE TABLE zenvisage_metafilelocation (database TEXT,     metafilelocation TEXT, csvfilelocation TEXT); CREATE TABLE zenvisage_metatable (tablename TEXT, attribute TEXT, type TEXT, axis TEXT, min FLOAT, max FLOAT); CREATE TABLE zenvisage_dynamic_classes (tablename TEXT, attribute TEXT, ranges TEXT);
         
-  # DROP schema public cascade; CREATE schema public; CREATE TABLE zenvisage_metafilelocation (database TEXT, metafilelocation TEXT,       csvfilelocation TEXT); CREATE TABLE zenvisage_metatable (tablename TEXT, attribute TEXT, type TEXT, axis TEXT);
-
 * Clean Postgres
 
             Postgres:
