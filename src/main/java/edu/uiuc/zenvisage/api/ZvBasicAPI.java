@@ -1,11 +1,22 @@
 package edu.uiuc.zenvisage.api;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Scanner;
 
 import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -27,11 +38,11 @@ public class ZvBasicAPI {
 
 	@Autowired
 	private ZvMain zvMain;
-
+	public String logFilename="";
     public ZvBasicAPI(){
 
 	}
-
+    
 	@RequestMapping(value = "/fileUpload", method = RequestMethod.POST)
 	@ResponseBody
 	public void fileUpload(HttpServletRequest request, HttpServletResponse response) throws ClassNotFoundException, InterruptedException, IOException, ServletException, SQLException {
@@ -99,11 +110,24 @@ public class ZvBasicAPI {
 	    while (scanner.hasNextLine()) {
 	        stringBuilder.append(scanner.nextLine());
 	    }
-
 	    String body = stringBuilder.toString();
-	    System.out.println("Representative:"+body);
+	   // System.out.println("Representative:"+body);
 		return zvMain.runDragnDropInterfaceQuerySeparated(body, "RepresentativeTrends");
 	}
+	
+//	@RequestMapping(value = "/downloadRepresentative", method = RequestMethod.POST)
+//	@ResponseBody
+//	public String downloadRepresentative(HttpServletRequest request, HttpServletResponse response) throws InterruptedException, IOException, SQLException {
+//		StringBuilder stringBuilder = new StringBuilder();
+//	    Scanner scanner = new Scanner(request.getInputStream());
+//	    while (scanner.hasNextLine()) {
+//	        stringBuilder.append(scanner.nextLine());
+//	    }
+//
+//	    String body = stringBuilder.toString();
+////	    System.out.println("Representative:"+body);
+//		zvMain.runDragnDropInterfaceQuerySeparated(body, "RepresentativeTrends");
+//	}
 
 	@RequestMapping(value = "/postOutlier", method = RequestMethod.POST)
 	@ResponseBody
@@ -118,7 +142,49 @@ public class ZvBasicAPI {
 
 		return zvMain.runDragnDropInterfaceQuerySeparated(body, "Outlier");
 	}
+	@RequestMapping(value = "/downloadSimilarity", method = RequestMethod.POST)
+	@ResponseBody
+	public void downloadSimilarity(HttpServletRequest request, HttpServletResponse response) throws InterruptedException, IOException, SQLException {
+		StringBuilder stringBuilder = new StringBuilder();
+	    Scanner scanner = new Scanner(request.getInputStream());
+	    while (scanner.hasNextLine()) {
+	    		String line = scanner.nextLine();
+	        stringBuilder.append(line);
+	        System.out.println(line);
+	    }
+	    String body = stringBuilder.toString();
+	    zvMain.saveDragnDropInterfaceQuerySeparated(body, "SimilaritySearch");
+	}
+	
+	@RequestMapping(value = "/downloadOutlier", method = RequestMethod.POST)
+	@ResponseBody
+	public void downloadOutlier(HttpServletRequest request, HttpServletResponse response) throws InterruptedException, IOException, SQLException {
+		System.out.println("downloadOutlier");
+		StringBuilder stringBuilder = new StringBuilder();
+	    Scanner scanner = new Scanner(request.getInputStream());
+	    while (scanner.hasNextLine()) {
+	    		String line = scanner.nextLine();
+	        stringBuilder.append(line);
+	        System.out.println(line);
+	    }
+	    String body = stringBuilder.toString();
+	    zvMain.saveDragnDropInterfaceQuerySeparated(body, "Outlier");
+	}
+	
+	@RequestMapping(value = "/postSimilarity_error", method = RequestMethod.POST)
+	@ResponseBody
+	public String postSimilarity_error(HttpServletRequest request, HttpServletResponse response) throws InterruptedException, IOException, SQLException {
+		StringBuilder stringBuilder = new StringBuilder();
+	    Scanner scanner = new Scanner(request.getInputStream());
+	    while (scanner.hasNextLine()) {
+	        stringBuilder.append(scanner.nextLine());
+	    }
 
+	    String body = stringBuilder.toString();
+
+		return zvMain.runDragnDropInterfaceQuerySeparated_error(body, "SimilaritySearch");
+	}
+	
 	@RequestMapping(value = "/postSimilarity", method = RequestMethod.POST)
 	@ResponseBody
 	public String postSimilarity(HttpServletRequest request, HttpServletResponse response) throws InterruptedException, IOException, SQLException {
@@ -134,6 +200,26 @@ public class ZvBasicAPI {
 		return zvMain.runDragnDropInterfaceQuerySeparated(body, "SimilaritySearch");
 	}
 
+	@RequestMapping(value = "/logger", method = RequestMethod.POST)
+	@ResponseBody
+	public void logger(HttpServletRequest request, HttpServletResponse response) throws InterruptedException, IOException, SQLException {
+		System.out.print("logFilename:");
+		System.out.println(logFilename);
+		if (logFilename.equals("")){
+			Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
+			logFilename = "../"+sdf.format(timestamp)+".log";
+		}
+		File file = new File(logFilename);
+		
+		BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+		String log = request.getParameter("timestamp")+","+request.getRemoteAddr()+','+request.getParameter("message")+'\n';
+        System.out.println(log);
+        writer.write(log);
+        writer.close();
+	}
+	 
+	
 	@RequestMapping(value = "/getDissimilarity", method = RequestMethod.GET)
 	@ResponseBody
 	public String getDissimilarity(@RequestParam(value="query") String arg) throws InterruptedException, IOException, SQLException {
@@ -193,5 +279,22 @@ public class ZvBasicAPI {
 	public String test(@RequestParam(value="query") String arg) {
 		return "Test successful:" + arg;
 	}
+	
+//	@RequestMapping(value = "/verifyPassword", method = RequestMethod.GET)
+//	@ResponseBody
+//	public String verifyPassword(@RequestParam(value="query") String arg) throws IOException {
+//		System.out.println("arg:");
+//		System.out.println(arg);
+//		// Creates a FileReader Object
+//		System.out.println("verifyPassword");
+//	    FileReader fr = new FileReader("../secret.txt"); 
+//	    char [] a = new char[50];
+//	    fr.read(a);   // reads the content to the array
+//	    for(char c : a)
+//	       System.out.print(c);   // prints the characters one by one
+//	    fr.close();
+//		return "Test successful:" + arg;
+//	}
+	
 
 }
